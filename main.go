@@ -33,6 +33,7 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/person", createPerson).Methods("POST")
+	r.HandleFunc("/person/{id}", getPerson).Methods("GET")
 	r.HandleFunc("/people", getPeople).Methods("GET")
 	http.ListenAndServe(":8080", r)
 }
@@ -73,4 +74,21 @@ func getPeople(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(people)
+}
+
+func getPerson(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("content-type", "application/json")
+	params := mux.Vars(r)
+	id, _ := primitive.ObjectIDFromHex(params["id"])
+	var person Person
+	personCollection := client.Database("MyFirstDatabase").Collection("People")
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+
+	err := personCollection.FindOne(ctx, Person{ID: id}).Decode(&person)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{ "message": "` + err.Error() + `"}`))
+		return
+	}
+	json.NewEncoder(w).Encode(person)
 }
